@@ -16,6 +16,7 @@ local invariant = require(script.Parent.Parent.invariant)
 
 local decodeValue = require(script.Parent.decodeValue)
 local reify = require(script.Parent.reify)
+local reifyInstance, applyDeferredRefs = reify.reifyInstance, reify.applyDeferredRefs
 local setProperty = require(script.Parent.setProperty)
 
 local function applyPatch(instanceMap, patch)
@@ -25,9 +26,14 @@ local function applyPatch(instanceMap, patch)
 		-- There can only be one recording at a time
 		Log.debug("Failed to begin history recording for " .. patchTimestamp .. ". Another recording is in progress.")
 	end
-
+	
 	-- Tracks any portions of the patch that could not be applied to the DOM.
 	local unappliedPatch = PatchSet.newEmpty()
+	
+	-- Contains a list of all of the ref properties that we'll need to assign. 
+	-- It is imperative that refs are assigned after all instances are created 
+	-- to ensure that referents can be mapped to instances correctly.
+	local deferredRefs = {}
 
 	for _, removedIdOrInstance in ipairs(patch.removed) do
 		local removeInstanceSuccess = pcall(function()
@@ -78,12 +84,14 @@ local function applyPatch(instanceMap, patch)
 			)
 		end
 
-		local failedToReify = reify(instanceMap, patch.added, id, parentInstance)
+		local failedToReify = reifyInstance(unappliedPatch, deferredRefs, instanceMap, patch.added, id, parentInstance)
 
 		if not PatchSet.isEmpty(failedToReify) then
 			Log.debug("Failed to reify as part of applying a patch: {:#?}", failedToReify)
 			PatchSet.assign(unappliedPatch, failedToReify)
 		end
+		
+		PatchSet.assign(unappliedPatch, failedToReify)
 	end
 
 	for _, update in ipairs(patch.updated) do
@@ -143,7 +151,7 @@ local function applyPatch(instanceMap, patch)
 				[update.id] = mockVirtualInstance,
 			}
 
-			local failedToReify = reify(instanceMap, mockAdded, update.id, instance.Parent)
+			local failedToReify = reifyInstance(unappliedPatch, deferredRefs, instanceMap, mockAdded, update.id, instance.Parent)
 
 			local newInstance = instanceMap.fromIds[update.id]
 
@@ -229,6 +237,8 @@ local function applyPatch(instanceMap, patch)
 	if historyRecording then
 		ChangeHistoryService:FinishRecording(historyRecording, Enum.FinishRecordingOperation.Commit)
 	end
+	
+	applyDeferredRefs(instanceMap, deferredRefs, unappliedPatch)
 
 	return unappliedPatch
 end

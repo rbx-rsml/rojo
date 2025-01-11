@@ -42,6 +42,9 @@ name = "build"
 harness = false
 
 [dependencies]
+rbx_rsml = { path = "crates/rbx-rsml" }
+normalize-path = "0.2.1"
+
 memofs = { version = "0.3.0", path = "crates/memofs" }
 
 # These dependencies can be uncommented when working on rbx-dom simultaneously

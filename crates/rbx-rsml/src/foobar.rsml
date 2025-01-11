@@ -1,0 +1,3 @@
+TextLabel {
+    Size = udim2 (1);
+}
