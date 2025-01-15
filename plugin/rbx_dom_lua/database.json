@@ -58741,16 +58741,13 @@
       "Tags": [],
       "Superclass": "StyleBase",
       "Properties": {
-        "Index": {
-          "Name": "Index",
-          "Scriptability": "None",
+        "Priority": {
+          "Name": "Priority",
+          "Scriptability": "ReadWrite",
           "DataType": {
             "Value": "Int32"
           },
-          "Tags": [
-            "Hidden",
-            "NotScriptable"
-          ],
+          "Tags": [],
           "Kind": {
             "Canonical": {
               "Serialization": "Serializes"

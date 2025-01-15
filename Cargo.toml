@@ -44,6 +44,7 @@ harness = false
 [dependencies]
 rbx_rsml = { path = "crates/rbx-rsml" }
 normalize-path = "0.2.1"
+bimap = "0.6.3"
 
 memofs = { version = "0.3.0", path = "crates/memofs" }
 

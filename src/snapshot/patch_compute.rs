@@ -6,6 +6,7 @@ use std::{
     mem::take,
 };
 
+use bimap::BiHashMap;
 use rbx_dom_weak::types::{Ref, Variant};
 
 use crate::{RojoRef, REF_POINTER_ATTRIBUTE_PREFIX};
@@ -16,18 +17,18 @@ use super::{
 };
 
 #[profiling::function]
-pub fn compute_patch_set(snapshot: Option<InstanceSnapshot>, tree: &RojoTree, id: Ref) -> PatchSet {
+pub fn compute_patch_set(
+    snapshot: Option<InstanceSnapshot>, tree: &RojoTree, snapshot_and_instance_ids_bimap: &mut BiHashMap<Ref, Ref>, id: Ref
+) -> PatchSet {
     let mut patch_set = PatchSet::new();
 
     if let Some(snapshot) = snapshot {
-        let mut context = ComputePatchContext::default();
-
-        compute_patch_set_internal(&mut context, snapshot, tree, id, &mut patch_set);
+        compute_patch_set_internal(snapshot_and_instance_ids_bimap, snapshot, tree, id, &mut patch_set);
 
         // Rewrite Ref properties to refer to instance IDs instead of snapshot IDs
         // for all of the IDs that we know about so far.
-        rewrite_refs_in_updates(&context, &mut patch_set.updated_instances);
-        rewrite_refs_in_additions(&context, &mut patch_set.added_instances);
+        rewrite_refs_in_updates(snapshot_and_instance_ids_bimap, &mut patch_set.updated_instances);
+        rewrite_refs_in_additions(snapshot_and_instance_ids_bimap, &mut patch_set.added_instances);
     } else if id != tree.get_root_id() {
         patch_set.removed_instances.push(id);
     }
@@ -35,16 +36,11 @@ pub fn compute_patch_set(snapshot: Option<InstanceSnapshot>, tree: &RojoTree, id
     patch_set
 }
 
-#[derive(Default)]
-struct ComputePatchContext {
-    snapshot_id_to_instance_id: HashMap<Ref, Ref>,
-}
-
-fn rewrite_refs_in_updates(context: &ComputePatchContext, updates: &mut [PatchUpdate]) {
+fn rewrite_refs_in_updates(snapshot_and_instance_ids_bimap: &mut BiHashMap<Ref, Ref>, updates: &mut [PatchUpdate]) {
     for update in updates {
         for property_value in update.changed_properties.values_mut() {
             if let Some(Variant::Ref(referent)) = property_value {
-                if let Some(&instance_ref) = context.snapshot_id_to_instance_id.get(referent) {
+                if let Some(&instance_ref) = snapshot_and_instance_ids_bimap.get_by_left(referent) {
                     *property_value = Some(Variant::Ref(instance_ref));
                 }
             }
@@ -52,36 +48,35 @@ fn rewrite_refs_in_updates(context: &ComputePatchContext, updates: &mut [PatchUp
     }
 }
 
-fn rewrite_refs_in_additions(context: &ComputePatchContext, additions: &mut [PatchAdd]) {
+fn rewrite_refs_in_additions(snapshot_and_instance_ids_bimap: &mut BiHashMap<Ref, Ref>, additions: &mut [PatchAdd]) {
     for addition in additions {
-        rewrite_refs_in_snapshot(context, &mut addition.instance);
+        rewrite_refs_in_snapshot(snapshot_and_instance_ids_bimap, &mut addition.instance);
     }
 }
 
-fn rewrite_refs_in_snapshot(context: &ComputePatchContext, snapshot: &mut InstanceSnapshot) {
+fn rewrite_refs_in_snapshot(snapshot_and_instance_ids_bimap: &mut BiHashMap<Ref, Ref>, snapshot: &mut InstanceSnapshot) {
     for property_value in snapshot.properties.values_mut() {
         if let Variant::Ref(referent) = property_value {
-            if let Some(&instance_referent) = context.snapshot_id_to_instance_id.get(referent) {
+            if let Some(&instance_referent) = snapshot_and_instance_ids_bimap.get_by_left(referent) {
                 *property_value = Variant::Ref(instance_referent);
             }
         }
     }
 
     for child in &mut snapshot.children {
-        rewrite_refs_in_snapshot(context, child);
+        rewrite_refs_in_snapshot(snapshot_and_instance_ids_bimap, child);
     }
 }
 
 fn compute_patch_set_internal(
-    context: &mut ComputePatchContext,
+    snapshot_and_instance_ids_bimap: &mut BiHashMap<Ref, Ref>,
     mut snapshot: InstanceSnapshot,
     tree: &RojoTree,
     id: Ref,
     patch_set: &mut PatchSet,
 ) {
     if snapshot.snapshot_id.is_some() {
-        context
-            .snapshot_id_to_instance_id
+        snapshot_and_instance_ids_bimap
             .insert(snapshot.snapshot_id, id);
     }
 
@@ -90,7 +85,7 @@ fn compute_patch_set_internal(
         .expect("Instance did not exist in tree");
 
     compute_property_patches(&mut snapshot, &instance, patch_set, tree);
-    compute_children_patches(context, &mut snapshot, tree, id, patch_set);
+    compute_children_patches(snapshot_and_instance_ids_bimap, &mut snapshot, tree, id, patch_set);
 }
 
 fn compute_property_patches(
@@ -181,7 +176,7 @@ fn compute_property_patches(
 }
 
 fn compute_children_patches(
-    context: &mut ComputePatchContext,
+    context: &mut BiHashMap<Ref, Ref>,
     snapshot: &mut InstanceSnapshot,
     tree: &RojoTree,
     id: Ref,
@@ -322,7 +317,9 @@ mod test {
             children: Vec::new(),
         };
 
-        let patch_set = compute_patch_set(Some(snapshot), &tree, root_id);
+        let patch_set = compute_patch_set(
+            Some(snapshot), &tree, &mut BiHashMap::new(), root_id
+        );
 
         let expected_patch_set = PatchSet {
             updated_instances: vec![PatchUpdate {
@@ -368,7 +365,9 @@ mod test {
             class_name: Cow::Borrowed("foo"),
         };
 
-        let patch_set = compute_patch_set(Some(snapshot), &tree, root_id);
+        let patch_set = compute_patch_set(
+            Some(snapshot), &tree, &mut BiHashMap::new(), root_id
+        );
 
         let expected_patch_set = PatchSet {
             added_instances: vec![PatchAdd {

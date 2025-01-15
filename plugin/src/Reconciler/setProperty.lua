@@ -7,7 +7,32 @@ local Log = require(Packages.Log)
 local RbxDom = require(Packages.RbxDom)
 local Error = require(script.Parent.Error)
 
+local Enums = Enum:GetEnums()
+
 local function setProperty(instance, propertyName, value)
+	if propertyName == "StyledProperties" then
+		-- Currently integers don't work in styled properties (bug), so
+		-- instead we are resorting to turning stringified enums into enums.
+		for styledPropName, styledPropValue in value do
+			if type(styledPropValue) ~= "string" then continue end
+			if not string.match(styledPropValue, "^Enum") then continue end
+			
+			local split = string.split(styledPropValue, ".")
+			if #split ~= 3 then continue end
+
+			local enum = Enums[split[2]]
+			if not enum then continue end
+
+			local enumVariant = enum[split[3]]
+			if not enumVariant then continue end
+
+			value[styledPropName] = enumVariant
+		end
+
+		instance:SetProperties(value)
+		return true
+	end
+
 	local descriptor = RbxDom.findCanonicalPropertyDescriptor(instance.ClassName, propertyName)
 
 	-- We can skip unknown properties; they're not likely reflected to Lua.

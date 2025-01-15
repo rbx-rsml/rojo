@@ -1,11 +1,11 @@
 // Modules -------------------------------------------------------------------------------------------
-use std::{collections::HashMap, hash::DefaultHasher, path::{Path, PathBuf}, str::FromStr, sync::Arc, fmt};
+use std::{collections::HashMap, hash::DefaultHasher, path::Path, str::FromStr};
 use normalize_path::NormalizePath;
 use std::hash::{Hash, Hasher};
 
 use memofs::{IoResultExt, Vfs};
 
-use crate::{snapshot::{InstanceContext, InstanceMetadata, InstanceSnapshot}, RojoRef};
+use crate::snapshot::{InstanceContext, InstanceMetadata, InstanceSnapshot};
 
 use super::meta_file::AdjacentMetadata;
 
@@ -45,17 +45,12 @@ fn apply_token_tree_to_stylesheet_snapshot(
     let attributes = attributes_from_hashmap(&data.variables);
     let styled_properties = attributes_from_hashmap(&data.properties);
 
-    let priority = match data.priority {
-        Some(some_priority) => Variant::Int32(some_priority),
-        None => Variant::Int32(0)
-    };
+    let mut properties: HashMap<String, Variant> = HashMap::new();
+    properties.insert("Selector".into(), Variant::String(selector.to_string()));
+    if let Some(priority) = data.priority { properties.insert("Priority".into(), Variant::Int32(priority)); }
+    if !attributes.is_empty() { properties.insert("Attributes".into(), attributes.into()); }
+    if !styled_properties.is_empty() { properties.insert("StyledProperties".into(), styled_properties.into()); }
 
-    let properties = [
-        ("Selector".into(), Variant::String(selector.to_string())),
-        ("Priority".into(), priority),
-        ("Attributes".into(), attributes.into()),
-        ("StyledProperties".into(), styled_properties.into())
-    ];
 
     snapshot.properties(properties)
 }
@@ -90,8 +85,6 @@ pub fn snapshot_rsml<'a>(
 
     let root_node = &token_tree_arena.get(0).unwrap();
 
-    let mut paths = vec![path.to_path_buf(), meta_path.clone()];
-
     let derives = &root_node.derives.iter()
         .map(|x| {
             match x.starts_with("./") {
@@ -100,12 +93,6 @@ pub fn snapshot_rsml<'a>(
             }
         })
         .collect::<Vec<String>>();
-
-    paths.append(
-        &mut derives.iter()
-            .map(|x| PathBuf::from_str(x).unwrap())
-            .collect::<Vec<PathBuf>>()
-    );
 
     let path_as_ref_string = path_to_ref_string(path.normalize().to_str().unwrap());
 
@@ -116,7 +103,7 @@ pub fn snapshot_rsml<'a>(
         .metadata(
             InstanceMetadata::new()
                 .instigating_source(path)
-                .relevant_paths(paths)
+                .relevant_paths([path.to_path_buf(), meta_path.clone()].into())
                 .context(context)
         );
 

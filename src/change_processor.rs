@@ -1,8 +1,8 @@
 use std::{
-    fs,
-    sync::{Arc, Mutex},
+    fs, sync::{Arc, Mutex}
 };
 
+use bimap::BiHashMap;
 use crossbeam_channel::{select, Receiver, RecvError, Sender};
 use jod_thread::JoinHandle;
 use memofs::{IoResultExt, Vfs, VfsEvent};
@@ -49,6 +49,7 @@ impl ChangeProcessor {
     pub fn start(
         tree: Arc<Mutex<RojoTree>>,
         vfs: Arc<Vfs>,
+        snapshot_and_instance_ids_bimap: Arc<Mutex<BiHashMap<Ref, Ref>>>,
         message_queue: Arc<MessageQueue<AppliedPatchSet>>,
         tree_mutation_receiver: Receiver<PatchSet>,
     ) -> Self {
@@ -57,6 +58,7 @@ impl ChangeProcessor {
         let task = JobThreadContext {
             tree,
             vfs,
+            snapshot_and_instance_ids_bimap,
             message_queue,
         };
 
@@ -108,6 +110,8 @@ struct JobThreadContext {
     /// A handle to the VFS we're managing.
     vfs: Arc<Vfs>,
 
+    snapshot_and_instance_ids_bimap: Arc<Mutex<BiHashMap<Ref, Ref>>>,
+
     /// Whenever changes are applied to the DOM, we should push those changes
     /// into this message queue to inform any connected clients.
     message_queue: Arc<MessageQueue<AppliedPatchSet>>,
@@ -127,6 +131,7 @@ impl JobThreadContext {
         let applied_patches = match event {
             VfsEvent::Create(path) | VfsEvent::Remove(path) | VfsEvent::Write(path) => {
                 let mut tree = self.tree.lock().unwrap();
+                let mut snapshot_and_instance_ids_bimap = self.snapshot_and_instance_ids_bimap.lock().unwrap();
                 let mut applied_patches = Vec::new();
 
                 // Find the nearest ancestor to this path that has
@@ -152,7 +157,9 @@ impl JobThreadContext {
                 };
 
                 for id in affected_ids {
-                    if let Some(patch) = compute_and_apply_changes(&mut tree, &self.vfs, id) {
+                    if let Some(patch) = compute_and_apply_changes(
+                        &mut tree, &self.vfs, &mut snapshot_and_instance_ids_bimap, id
+                    ) {
                         if !patch.is_empty() {
                             applied_patches.push(patch);
                         }
@@ -177,6 +184,7 @@ impl JobThreadContext {
 
         let applied_patch = {
             let mut tree = self.tree.lock().unwrap();
+            let mut snapshot_and_instance_ids_bimap = self.snapshot_and_instance_ids_bimap.lock().unwrap();
 
             for &id in &patch_set.removed_instances {
                 if let Some(instance) = tree.get_instance(id) {
@@ -253,7 +261,7 @@ impl JobThreadContext {
                 }
             }
 
-            apply_patch_set(&mut tree, patch_set)
+            apply_patch_set(&mut tree, &mut snapshot_and_instance_ids_bimap, patch_set)
         };
 
         if !applied_patch.is_empty() {
@@ -262,7 +270,9 @@ impl JobThreadContext {
     }
 }
 
-fn compute_and_apply_changes(tree: &mut RojoTree, vfs: &Vfs, id: Ref) -> Option<AppliedPatchSet> {
+fn compute_and_apply_changes(
+    tree: &mut RojoTree, vfs: &Vfs, snapshot_and_instance_ids_bimap: &mut BiHashMap<Ref, Ref>, id: Ref
+) -> Option<AppliedPatchSet> {
     let metadata = tree
         .get_metadata(id)
         .expect("metadata missing for instance present in tree");
@@ -296,8 +306,8 @@ fn compute_and_apply_changes(tree: &mut RojoTree, vfs: &Vfs, id: Ref) -> Option<
                     }
                 };
 
-                let patch_set = compute_patch_set(snapshot, tree, id);
-                apply_patch_set(tree, patch_set)
+                let patch_set = compute_patch_set(snapshot, tree, snapshot_and_instance_ids_bimap, id);
+                apply_patch_set(tree, snapshot_and_instance_ids_bimap, patch_set)
             }
             Ok(None) => {
                 // Our instance was previously created from a path, but that
@@ -309,7 +319,7 @@ fn compute_and_apply_changes(tree: &mut RojoTree, vfs: &Vfs, id: Ref) -> Option<
                 let mut patch_set = PatchSet::new();
                 patch_set.removed_instances.push(id);
 
-                apply_patch_set(tree, patch_set)
+                apply_patch_set(tree, snapshot_and_instance_ids_bimap, patch_set)
             }
             Err(err) => {
                 log::error!("Error processing filesystem change: {:?}", err);
@@ -339,8 +349,8 @@ fn compute_and_apply_changes(tree: &mut RojoTree, vfs: &Vfs, id: Ref) -> Option<
                 }
             };
 
-            let patch_set = compute_patch_set(snapshot, tree, id);
-            apply_patch_set(tree, patch_set)
+            let patch_set = compute_patch_set(snapshot, tree, snapshot_and_instance_ids_bimap, id);
+            apply_patch_set(tree, snapshot_and_instance_ids_bimap, patch_set)
         }
     };
 

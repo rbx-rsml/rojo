@@ -26,7 +26,7 @@ local function applyPatch(instanceMap, patch)
 		-- There can only be one recording at a time
 		Log.debug("Failed to begin history recording for " .. patchTimestamp .. ". Another recording is in progress.")
 	end
-	
+
 	-- Tracks any portions of the patch that could not be applied to the DOM.
 	local unappliedPatch = PatchSet.newEmpty()
 	
@@ -84,14 +84,12 @@ local function applyPatch(instanceMap, patch)
 			)
 		end
 
-		local failedToReify = reifyInstance(unappliedPatch, deferredRefs, instanceMap, patch.added, id, parentInstance)
+		local failedToReify = reifyInstance(deferredRefs, instanceMap, patch.added, id, parentInstance)
 
 		if not PatchSet.isEmpty(failedToReify) then
 			Log.debug("Failed to reify as part of applying a patch: {:#?}", failedToReify)
 			PatchSet.assign(unappliedPatch, failedToReify)
 		end
-		
-		PatchSet.assign(unappliedPatch, failedToReify)
 	end
 
 	for _, update in ipairs(patch.updated) do
@@ -151,7 +149,7 @@ local function applyPatch(instanceMap, patch)
 				[update.id] = mockVirtualInstance,
 			}
 
-			local failedToReify = reifyInstance(unappliedPatch, deferredRefs, instanceMap, mockAdded, update.id, instance.Parent)
+			local failedToReify = reifyInstance(deferredRefs, instanceMap, mockAdded, update.id, instance.Parent)
 
 			local newInstance = instanceMap.fromIds[update.id]
 
@@ -214,6 +212,18 @@ local function applyPatch(instanceMap, patch)
 
 		if update.changedProperties ~= nil then
 			for propertyName, propertyValue in pairs(update.changedProperties) do
+				-- Because refs may refer to instances that we haven't constructed yet,
+				-- we defer applying any ref properties until all instances are created.
+				if next(propertyValue) == "Ref" then
+					table.insert(deferredRefs, {
+						id = update.id,
+						instance = instance,
+						propertyName = propertyName,
+						virtualValue = propertyValue,
+					})
+					continue
+				end
+
 				local decodeSuccess, decodedValue = decodeValue(propertyValue, instanceMap)
 				if not decodeSuccess then
 					unappliedUpdate.changedProperties[propertyName] = propertyValue
@@ -237,7 +247,7 @@ local function applyPatch(instanceMap, patch)
 	if historyRecording then
 		ChangeHistoryService:FinishRecording(historyRecording, Enum.FinishRecordingOperation.Commit)
 	end
-	
+
 	applyDeferredRefs(instanceMap, deferredRefs, unappliedPatch)
 
 	return unappliedPatch

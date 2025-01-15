@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use bimap::BiHashMap;
 use rbx_dom_weak::{
     types::{Ref, Variant},
     Instance, InstanceBuilder, WeakDom,
@@ -38,7 +39,7 @@ pub struct RojoTree {
     /// This field is a MultiMap to allow for the possibility of the user specifying
     /// the same RojoRef for multiple different instances. An entry containing
     /// multiple elements is an error condition that should be raised to the user.
-    specified_id_to_refs: MultiMap<RojoRef, Ref>,
+    specified_id_to_refs: MultiMap<RojoRef, Ref>
 }
 
 impl RojoTree {
@@ -51,7 +52,7 @@ impl RojoTree {
             inner: WeakDom::new(root_builder),
             metadata_map: HashMap::new(),
             path_to_ids: MultiMap::new(),
-            specified_id_to_refs: MultiMap::new(),
+            specified_id_to_refs: MultiMap::new()
         };
 
         let root_ref = tree.inner.root_ref();
@@ -109,12 +110,13 @@ impl RojoTree {
         referent
     }
 
-    pub fn remove(&mut self, id: Ref) {
+    pub fn remove(&mut self, id: Ref, snapshot_and_instance_ids_bimap: &mut BiHashMap<Ref, Ref>) {
         let mut to_move = VecDeque::new();
         to_move.push_back(id);
 
         while let Some(id) = to_move.pop_front() {
             self.remove_metadata(id);
+            snapshot_and_instance_ids_bimap.remove_by_right(&id);
 
             if let Some(instance) = self.inner.get_by_ref(id) {
                 to_move.extend(instance.children().iter().copied());
@@ -351,6 +353,8 @@ impl InstanceWithMetaMut<'_> {
 
 #[cfg(test)]
 mod test {
+    use bimap::BiHashMap;
+
     use crate::{
         snapshot::{InstanceMetadata, InstanceSnapshot},
         RojoRef,
@@ -371,7 +375,7 @@ mod test {
         let duped = tree.insert_instance(tree.get_root_id(), snapshot.clone());
         assert_eq!(tree.get_specified_id(&custom_ref.clone()), None);
 
-        tree.remove(original);
+        tree.remove(original, &mut BiHashMap::new());
         assert_eq!(tree.get_specified_id(&custom_ref.clone()), Some(duped));
     }
 }

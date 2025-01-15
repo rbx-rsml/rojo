@@ -20,40 +20,26 @@ local function addAllToPatch(patchSet, virtualInstances, id)
 	end
 end
 
---[[
-	Used for extracting `Priority` from the properties for a StyleRule
-	as it will need to be applied after the rule has been parented.
-]]
-local function getStyleRulePriority(properties)
-	local priority = properties.Priority
-	if not priority then return nil end
-
-	properties.Priority = nil
-	return priority
-end
-
-function reifyInstance(unappliedPatch, deferredRefs, instanceMap, virtualInstances, rootId, parentInstance)
+function reifyInstance(deferredRefs, instanceMap, virtualInstances, rootId, parentInstance)
 	-- Create an empty patch that will be populated with any parts of this reify
 	-- that could not happen, like instances that couldn't be created and
 	-- properties that could not be assigned.
-	local innerUnappliedPatch = PatchSet.newEmpty()
+	local unappliedPatch = PatchSet.newEmpty()
 	
-	reifyInstanceInner(unappliedPatch, innerUnappliedPatch, deferredRefs, instanceMap, virtualInstances, rootId, parentInstance)
+	reifyInstanceInner(unappliedPatch, deferredRefs, instanceMap, virtualInstances, rootId, parentInstance)
 	
-	return innerUnappliedPatch
+	return unappliedPatch
 end
 
 --[[
 	Inner function that defines the core routine.
 ]]
-function reifyInstanceInner(unappliedPatch, innerUnappliedPatch, deferredRefs, instanceMap, virtualInstances, id, parentInstance)
+function reifyInstanceInner(unappliedPatch, deferredRefs, instanceMap, virtualInstances, id, parentInstance)
 	local virtualInstance = virtualInstances[id]
 
 	if virtualInstance == nil then
 		invariant("Cannot reify an instance not present in virtualInstances\nID: {}", id)
 	end
-	
-	local localUnappliedPatch = PatchSet.newEmpty()
 
 	-- Instance.new can fail if we're passing in something that can't be
 	-- created, like a service, something enabled with a feature flag, or
@@ -61,7 +47,7 @@ function reifyInstanceInner(unappliedPatch, innerUnappliedPatch, deferredRefs, i
 	local createSuccess, instance = pcall(Instance.new, virtualInstance.ClassName)
 
 	if not createSuccess then
-		addAllToPatch(localUnappliedPatch, virtualInstances, id)
+		addAllToPatch(virtualInstances, id)
 		return
 	end
 
@@ -100,14 +86,14 @@ function reifyInstanceInner(unappliedPatch, innerUnappliedPatch, deferredRefs, i
 	-- If there were any properties that we failed to assign, push this into our
 	-- unapplied patch as an update that would need to be applied.
 	if next(unappliedProperties) ~= nil then
-		table.insert(localUnappliedPatch.updated, {
+		table.insert(unappliedPatch.updated, {
 			id = id,
 			changedProperties = unappliedProperties,
 		})
 	end
 
 	for _, childId in ipairs(virtualInstance.Children) do
-		reifyInstanceInner(unappliedPatch, innerUnappliedPatch, deferredRefs, instanceMap, virtualInstances, childId, instance)
+		reifyInstanceInner(unappliedPatch, deferredRefs, instanceMap, virtualInstances, childId, instance)
 	end
 
 	instance.Parent = parentInstance
@@ -142,7 +128,6 @@ function applyDeferredRefs(instanceMap, deferredRefs, unappliedPatch)
 
 	for _, entry in ipairs(deferredRefs) do
 		local _, refId = next(entry.virtualValue)
-		local id = entry.id
 	
 		if refId == nil then
 			continue
@@ -151,13 +136,13 @@ function applyDeferredRefs(instanceMap, deferredRefs, unappliedPatch)
 		local targetInstance = instanceMap.fromIds[refId]
 
 		if targetInstance == nil then
-			markFailed(id, entry.propertyName, entry.virtualValue)
+			markFailed(entry.id, entry.propertyName, entry.virtualValue)
 			continue
 		end
 
 		local setPropertySuccess = setProperty(entry.instance, entry.propertyName, targetInstance)
 		if not setPropertySuccess then
-			markFailed(id, entry.propertyName, entry.virtualValue)
+			markFailed(entry.id, entry.propertyName, entry.virtualValue)
 		end
 	end
 end
