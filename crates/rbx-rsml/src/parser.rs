@@ -272,6 +272,7 @@ fn token_to_string_as_enum<'a>(token: &Token<'a>) -> String {
         Token::Text(text_type) => match text_type {
             TextType::NonSpecial(text) |
             TextType::SelectorStateOrEnumPart(text) |
+            TextType::SelectorTagOrEnumPart(text) |
             TextType::Variable(text) |
             TextType::PsuedoProperty(text) => String::from(*text),
 
@@ -282,17 +283,21 @@ fn token_to_string_as_enum<'a>(token: &Token<'a>) -> String {
     }
 }
 
+fn text_type_to_string<'a>(text_type: &TextType) -> String {
+    match text_type {
+        TextType::NonSpecial(text) => String::from(*text),
+        TextType::SelectorName(text) => format!("#{}", &text),
+        TextType::SelectorTagOrEnumPart(text) => format!(".{}", &text),
+        TextType::SelectorStateOrEnumPart(text) => format!(":{}", &text),
+        TextType::SelectorPsuedo(text) => format!("::{}", &text),
+
+        _ => String::from("")
+    }
+}
+
 fn token_to_string<'a>(token: &Token<'a>) -> String {
     match token {
-        Token::Text(text_type) => match text_type {
-            TextType::NonSpecial(text) => String::from(*text),
-            TextType::SelectorName(text) => format!("#{}", &text),
-            TextType::SelectorTag(text) => format!(".{}", &text),
-            TextType::SelectorStateOrEnumPart(text) => format!(":{}", &text),
-            TextType::SelectorPsuedo(text) => format!("::{}", &text),
-
-            _ => String::from("")
-        },
+        Token::Text(text_type) => text_type_to_string(text_type),
 
         Token::ScopeToChildren => String::from(">"),
 
@@ -1076,18 +1081,18 @@ fn parse_css_color_data_type<'a>(token: &'a Token) -> Option<DataType<'a>> {
     None
 }
 
-fn parse_enum_data_type<'a>(
-    token: &'a Token, parser: &mut Parser<'a>, key: Option<&'a TextType<'_>>, mut backtrack_amount: usize
+fn parse_full_enum<'a>(
+    token: &'a Token, parser: &mut Parser<'a>, key: &'a TextType<'_>, mut backtrack_amount: usize
 ) -> Option<DataType<'a>> {
     if matches!(
-        token, Token::EnumKeyword | Token::Text(TextType::SelectorStateOrEnumPart(_))
+        token, Token::Text(TextType::SelectorStateOrEnumPart(_) | TextType::SelectorTagOrEnumPart(_))
     ) {
         backtrack_amount += 1;
 
         let next_token = parser.advance();
 
         if let Some(next_token) = next_token {
-            if let Some(enum_data_type) = parse_enum_data_type(next_token, parser, key, backtrack_amount) {
+            if let Some(enum_data_type) = parse_full_enum(next_token, parser, key, backtrack_amount) {
                 return Some(enum_data_type)
             }
         }
@@ -1095,19 +1100,7 @@ fn parse_enum_data_type<'a>(
 
     if backtrack_amount == 0 { return None }
 
-    parser.position -= 1;
-
-    let mut enum_data_type = parser.backtrack(backtrack_amount).to_vec();
-
-    if !matches!(enum_data_type[0], Token::EnumKeyword) {
-        enum_data_type.insert(0, Token::EnumKeyword);
-    }
-
-    if enum_data_type.len() == 2 {
-        if let Some(key) = key {
-            enum_data_type.insert(1, Token::Text(key.to_owned()));
-        }
-    }
+    let enum_data_type = parser.backtrack(backtrack_amount).to_vec();
 
     Some(DataType::OwnedString(enum_data_type
         .iter()
@@ -1115,6 +1108,38 @@ fn parse_enum_data_type<'a>(
         .collect::<Vec<String>>()
         .join(".")
     ))
+}
+
+fn parse_enum_keyword<'a>(
+    token: &'a Token, parser: &mut Parser<'a>, key: &'a TextType<'_>
+) -> Option<DataType<'a>> {
+    if matches!(token, Token::EnumKeyword) {
+        let next_token = parser.advance()?;
+
+        return parse_full_enum(next_token, parser, key, 1)
+    } else {
+        return None
+    }
+}
+
+fn parse_enum_shorthand<'a>(
+    token: &'a Token, key: &'a TextType<'_>
+) -> Option<DataType<'a>> {
+    match token {
+        Token::Text(
+            TextType::SelectorStateOrEnumPart(value) | TextType::SelectorTagOrEnumPart(value)
+        ) => Some(DataType::OwnedString(format!("Enum.{}.{}", text_type_to_string(key), &value))),
+
+        _ => None
+    }
+}
+
+fn parse_enum_data_type<'a>(
+    token: &'a Token, parser: &mut Parser<'a>, key: &'a TextType<'_>
+) -> Option<DataType<'a>> {
+    if let Some(enum_datatype) = parse_enum_keyword(token, parser, key) { return Some(enum_datatype) }
+    if let Some(enum_datatype) = parse_enum_shorthand(token, key) { return Some(enum_datatype) }
+    None
 }
 
 fn parse_data_type<'a>(token: &'a Token, parser: &mut Parser<'a>, key: Option<&'a TextType<'_>>) -> Option<DataType<'a>> {
@@ -1131,8 +1156,11 @@ fn parse_data_type<'a>(token: &'a Token, parser: &mut Parser<'a>, key: Option<&'
             return None
         }
 
-    } else if let Some(enum_data_type) = parse_enum_data_type(token, parser, key, 0) {
-        Some(enum_data_type)
+    } else if let Some(key) = key {
+        if let Some(enum_data_type) = parse_enum_data_type(token, parser, key) {
+            Some(enum_data_type)
+        } else { None }
+    
 
     } else if let Some(hex_data_type) = parse_hex_data_type(token) {
         Some(hex_data_type)

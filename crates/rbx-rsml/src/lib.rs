@@ -1,6 +1,3 @@
-#![feature(let_chains)]
-#![feature(f128)]
-
 mod lexer;
 pub use lexer::lex_rsml;
 

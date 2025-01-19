@@ -5,7 +5,7 @@ use rbx_types::{Color3, Font, Rect, UDim, UDim2, Vector2, Vector3};
 pub enum TextType<'a> {
     NonSpecial(&'a str),
     SelectorName(&'a str),
-    SelectorTag(&'a str),
+    SelectorTagOrEnumPart(&'a str),
     SelectorStateOrEnumPart(&'a str),
     SelectorPsuedo(&'a str),
     Argument(&'a str),
@@ -57,7 +57,7 @@ pub enum Token<'a> {
 
     #[regex(r#"[a-zA-Z0-9"'_-]+"#, |lex| TextType::NonSpecial(lex.slice()), priority = 1)]
     #[regex(r#"#[a-zA-Z0-9"'_-]+"#, |lex| TextType::SelectorName(str_clip(lex.slice(), 1, 0)), priority = 1)]
-    #[regex(r#"\.[a-zA-Z0-9"'_-]+"#, |lex| TextType::SelectorTag(str_clip(lex.slice(), 1, 0)), priority = 1)]
+    #[regex(r#"\.[a-zA-Z0-9"'_-]+"#, |lex| TextType::SelectorTagOrEnumPart(str_clip(lex.slice(), 1, 0)), priority = 1)]
     #[regex(r#":[a-zA-Z0-9"'_-]+"#, |lex| TextType::SelectorStateOrEnumPart(str_clip(lex.slice(), 1, 0)), priority = 1)]
     #[regex(r#"::[a-zA-Z0-9"'_-]+"#, |lex| TextType::SelectorPsuedo(str_clip(lex.slice(), 2, 0)), priority = 1)]
     #[regex(r#"\$![a-zA-Z0-9"'_-]+"#, |lex| TextType::Argument(str_clip(lex.slice(), 2, 0)), priority = 1)]
