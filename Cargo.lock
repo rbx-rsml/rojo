@@ -1819,7 +1819,7 @@ dependencies = [
 
 [[package]]
 name = "rojo"
-version = "7.5.0-prealpha"
+version = "7.5.0-prealpha-0.0.0-rsml"
 dependencies = [
  "anyhow",
  "backtrace",
