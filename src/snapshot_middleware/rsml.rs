@@ -58,6 +58,8 @@ fn apply_token_tree_to_stylesheet_snapshot(
 
 
 fn stringify_path(path: &Path) -> String {
+    println!("/hello world");
+
     let stringified = path.normalize().to_str().unwrap()
         // On windows the path string uses `\\` as a separator instead of `/`.
         .replace(r"\\", "/");
