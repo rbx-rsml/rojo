@@ -64,6 +64,8 @@ fn stringify_path(path: &Path) -> String {
 }
 
 fn string_to_ref(str: &str) -> String {
+    println!("{:#?}", str);
+
     let mut hasher = Sha256::new();
     hasher.update(str);
     let hash = hasher.finalize();
