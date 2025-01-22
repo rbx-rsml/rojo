@@ -62,7 +62,7 @@ fn stringify_path(path: &Path) -> String {
 
     let stringified = path.normalize().to_str().unwrap()
         // On windows the path string uses `\\` as a separator instead of `/`.
-        .replace(r"\\", r"/");
+        .replace(r"\", r"/");
 
     println!("{:#?} {:#?}", stringified, stringified.chars().nth(0));
 
