@@ -17,6 +17,11 @@ const CSS_COLORS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
         .expect("Could not read css_colors.json file.")
 });
 
+const BRICK_COLORS: LazyLock<HashMap<String, [f32; 3]>> = LazyLock::new(|| {
+    serde_json::from_slice(include_bytes!("../brick_colors.json"))
+        .expect("Could not read css_colors.json file.")
+});
+
 
 #[derive(Clone, Debug)]
 enum EquationDataType<'a> {
@@ -1037,6 +1042,8 @@ fn data_type_to_variant(data_type: &DataType) -> Variant {
         DataType::UDim(data_type) => Variant::UDim(*data_type),
         DataType::UDim2(data_type) => Variant::UDim2(*data_type),
         DataType::Vec2(data_type) => Variant::Vector2(*data_type),
+        DataType::Bool(data_type) => Variant::Bool(*data_type),
+        DataType::Vec3(data_type) => Variant::Vector3(*data_type),
         DataType::Color3(data_type) => Variant::Color3(*data_type),
         DataType::Number(data_type) => Variant::Float32(*data_type as f32),
         DataType::NumberOffset(data_type) => Variant::UDim(UDim::new(0.0, *data_type as i32)),
@@ -1076,6 +1083,18 @@ fn parse_tailwind_color_data_type<'a>(token: &'a Token) -> Option<DataType<'a>> 
 fn parse_css_color_data_type<'a>(token: &'a Token) -> Option<DataType<'a>> {
     if let Token::DataType(DataType::ColorCss(css_color)) = token {
         return Some(parse_hex(CSS_COLORS.get(css_color.to_owned()).unwrap()))
+    }
+
+    None
+}
+
+fn parse_brick_color_data_type<'a>(token: &'a Token) -> Option<DataType<'a>> {
+    if let Token::DataType(DataType::ColorBc(brick_color_name)) = token {
+        let brick_color = BRICK_COLORS.get(brick_color_name.to_owned()).unwrap().to_owned();
+
+        return Some(
+            DataType::Color3(Color3::new(brick_color[0] / 255.0, brick_color[1] / 255.0, brick_color[2] / 255.0))
+        )
     }
 
     None
@@ -1135,10 +1154,13 @@ fn parse_enum_shorthand<'a>(
 }
 
 fn parse_enum_data_type<'a>(
-    token: &'a Token, parser: &mut Parser<'a>, key: &'a TextType<'_>
+    token: &'a Token, parser: &mut Parser<'a>, key: Option<&'a TextType<'_>>
 ) -> Option<DataType<'a>> {
-    if let Some(enum_datatype) = parse_enum_keyword(token, parser, key) { return Some(enum_datatype) }
-    if let Some(enum_datatype) = parse_enum_shorthand(token, key) { return Some(enum_datatype) }
+    if let Some(key) = key {
+        if let Some(enum_datatype) = parse_enum_keyword(token, parser, key) { return Some(enum_datatype) }
+        if let Some(enum_datatype) = parse_enum_shorthand(token, key) { return Some(enum_datatype) }
+    }  
+
     None
 }
 
@@ -1156,10 +1178,8 @@ fn parse_data_type<'a>(token: &'a Token, parser: &mut Parser<'a>, key: Option<&'
             return None
         }
 
-    } else if let Some(key) = key {
-        if let Some(enum_data_type) = parse_enum_data_type(token, parser, key) {
-            Some(enum_data_type)
-        } else { None }
+    } else if let Some(enum_data_type) = parse_enum_data_type(token, parser, key) {
+        Some(enum_data_type)
     
 
     } else if let Some(hex_data_type) = parse_hex_data_type(token) {
@@ -1170,6 +1190,9 @@ fn parse_data_type<'a>(token: &'a Token, parser: &mut Parser<'a>, key: Option<&'
 
     } else if let Some(css_color_data_type) = parse_css_color_data_type(token) {
         Some(css_color_data_type)
+
+    } else if let Some(css_color_data_type) = parse_brick_color_data_type(token) {
+            Some(css_color_data_type)
     
     } else if let Token::DataType(data_type_value) = token {
         Some(data_type_value.to_owned())

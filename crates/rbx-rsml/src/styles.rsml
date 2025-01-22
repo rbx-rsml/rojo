@@ -1,4 +1,7 @@
-Test {
 
+
+Frame {
+    BackgroundColor3 = bc:reallyred;
+    Visible = false;
 }
 

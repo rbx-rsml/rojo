@@ -7,8 +7,6 @@ local Log = require(Packages.Log)
 local RbxDom = require(Packages.RbxDom)
 local Error = require(script.Parent.Error)
 
-local Enums = Enum:GetEnums()
-
 local function setProperty(instance, propertyName, value)
 	if propertyName == "StyledProperties" then
 		-- Currently integers don't work in styled properties (bug), so
@@ -20,7 +18,7 @@ local function setProperty(instance, propertyName, value)
 			local split = string.split(styledPropValue, ".")
 			if #split ~= 3 then continue end
 
-			local enum = Enums[split[2]]
+			local enum = Enum[split[2]]
 			if not enum then continue end
 
 			local enumVariant = enum[split[3]]
