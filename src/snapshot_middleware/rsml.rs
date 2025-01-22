@@ -90,6 +90,7 @@ pub fn snapshot_rsml<'a>(
         })
         .collect::<Vec<String>>();
 
+    println!("{:#?}", path.normalize().to_str().unwrap());
     let path_as_ref_string = path_to_ref_string(path.normalize().to_str().unwrap());
 
     let mut snapshot = InstanceSnapshot::new()
