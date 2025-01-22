@@ -57,6 +57,8 @@ fn apply_token_tree_to_stylesheet_snapshot(
 // ---------------------------------------------------------------------------------------------------
 
 
+
+
 fn path_to_ref_string(seed: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(seed);
@@ -73,6 +75,8 @@ pub fn snapshot_rsml<'a>(
 ) -> anyhow::Result<Option<InstanceSnapshot>> {
     let contents = vfs.read_to_string(path)?;
     let contents_str = contents.as_str();
+
+    println!("{:#?}", Path::new("./hello/world").normalize());
 
     let tokens = lex_rsml(contents_str);
     let token_tree_arena = parse_rsml(&tokens);
