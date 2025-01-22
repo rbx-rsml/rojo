@@ -1,7 +1,7 @@
 // Modules -------------------------------------------------------------------------------------------
-use std::{collections::HashMap, hash::DefaultHasher, path::Path, str::FromStr};
+use std::{collections::HashMap, path::Path, str::FromStr};
+use sha2::{Sha256, Digest};
 use normalize_path::NormalizePath;
-use std::hash::{Hash, Hasher};
 
 use memofs::{IoResultExt, Vfs};
 
@@ -58,15 +58,11 @@ fn apply_token_tree_to_stylesheet_snapshot(
 
 
 fn path_to_ref_string(seed: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    seed.hash(&mut hasher);
-    let hash = hasher.finish();
+    let mut hasher = Sha256::new();
+    hasher.update(seed);
+    let hash = hasher.finalize();
 
-    let high = hash as u128;
-    let low = !hash as u128;
-    let combined = (high << 64) | low;
-
-    format!("{:032x}", combined)
+    format!("{:032x}", u128::from_be_bytes(hash[..16].try_into().unwrap()))
 }
 
 pub fn snapshot_rsml<'a>(
