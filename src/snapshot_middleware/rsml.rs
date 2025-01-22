@@ -57,11 +57,15 @@ fn apply_token_tree_to_stylesheet_snapshot(
 // ---------------------------------------------------------------------------------------------------
 
 
+fn stringify_path(path: &Path) -> String {
+    path.normalize().to_str().unwrap()
+        // On windows the path string uses `\\` as a separator instead of `/`.
+        .replace(r"\\", "/")
+}
 
-
-fn path_to_ref_string(seed: &str) -> String {
+fn string_to_ref(str: &str) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(seed);
+    hasher.update(str);
     let hash = hasher.finalize();
 
     format!("{:032x}", u128::from_be_bytes(hash[..16].try_into().unwrap()))
@@ -76,8 +80,6 @@ pub fn snapshot_rsml<'a>(
     let contents = vfs.read_to_string(path)?;
     let contents_str = contents.as_str();
 
-    println!("{:#?}", Path::new("./hello/world").normalize());
-
     let tokens = lex_rsml(contents_str);
     let token_tree_arena = parse_rsml(&tokens);
 
@@ -88,14 +90,13 @@ pub fn snapshot_rsml<'a>(
     let derives = &root_node.derives.iter()
         .map(|x| {
             match x.starts_with("./") {
-                true => path.join("..").join(Path::new(x)).normalize().to_str().unwrap().to_string(),
-                false => Path::new(x).normalize().to_str().unwrap().to_string()
+                true => stringify_path(&path.join("..").join(Path::new(x))),
+                false => stringify_path(Path::new(x))
             }
         })
         .collect::<Vec<String>>();
 
-    println!("{:#?}", path.normalize().to_str().unwrap());
-    let path_as_ref_string = path_to_ref_string(path.normalize().to_str().unwrap());
+    let path_as_ref_string = string_to_ref(&stringify_path(path));
 
     let mut snapshot = InstanceSnapshot::new()
         .name(name)
@@ -147,7 +148,7 @@ pub fn snapshot_rsml<'a>(
                 .name(name)
                 .class_name("StyleDerive")
                 .properties([
-                    ("StyleSheet".into(), Variant::Ref(Ref::from_str(&path_to_ref_string(path)).unwrap()))
+                    ("StyleSheet".into(), Variant::Ref(Ref::from_str(&string_to_ref(path)).unwrap()))
                 ])
         );
     }
