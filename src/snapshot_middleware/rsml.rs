@@ -58,14 +58,16 @@ fn apply_token_tree_to_stylesheet_snapshot(
 
 
 fn stringify_path(path: &Path) -> String {
-    path.normalize().to_str().unwrap()
+    let stringified = path.normalize().to_str().unwrap()
         // On windows the path string uses `\\` as a separator instead of `/`.
-        .replace(r"\\", "/")
+        .replace(r"\\", "/");
+
+    println!("{:#?}", stringified);
+
+    stringified
 }
 
 fn string_to_ref(str: &str) -> String {
-    println!("{:#?}", str);
-
     let mut hasher = Sha256::new();
     hasher.update(str);
     let hash = hasher.finalize();
