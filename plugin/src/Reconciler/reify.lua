@@ -55,42 +55,50 @@ function reifyInstanceInner(unappliedPatch, deferredRefs, instanceMap, virtualIn
 	-- the reason why was uncertain.
 	instance.Name = virtualInstance.Name
 
-	-- Track all of the properties that we've failed to assign to this instance.
-	local unappliedProperties = {}
+	local function applyProperties(properties)
+		-- Track all of the properties that we've failed to assign to this instance.
+		local unappliedProperties = {}
 
-	for propertyName, virtualValue in pairs(virtualInstance.Properties) do
-		-- Because refs may refer to instances that we haven't constructed yet,
-		-- we defer applying any ref properties until all instances are created.
-		if next(virtualValue) == "Ref" then
-			table.insert(deferredRefs, {
+		for propertyName, virtualValue in pairs(properties) do
+			-- Because refs may refer to instances that we haven't constructed yet,
+			-- we defer applying any ref properties until all instances are created.
+			if next(virtualValue) == "Ref" then
+				table.insert(deferredRefs, {
+					id = id,
+					instance = instance,
+					propertyName = propertyName,
+					virtualValue = virtualValue,
+				})
+				continue
+			end
+	
+			local decodeSuccess, value = decodeValue(virtualValue, instanceMap)
+			if not decodeSuccess then
+				unappliedProperties[propertyName] = virtualValue
+				continue
+			end
+	
+			local setPropertySuccess = setProperty(instance, propertyName, value)
+			if not setPropertySuccess then
+				unappliedProperties[propertyName] = virtualValue
+			end
+		end
+
+		-- If there were any properties that we failed to assign, push this into our
+		-- unapplied patch as an update that would need to be applied.
+		if next(unappliedProperties) ~= nil then
+			table.insert(unappliedPatch.updated, {
 				id = id,
-				instance = instance,
-				propertyName = propertyName,
-				virtualValue = virtualValue,
+				changedProperties = unappliedProperties,
 			})
-			continue
-		end
-
-		local decodeSuccess, value = decodeValue(virtualValue, instanceMap)
-		if not decodeSuccess then
-			unappliedProperties[propertyName] = virtualValue
-			continue
-		end
-
-		local setPropertySuccess = setProperty(instance, propertyName, value)
-		if not setPropertySuccess then
-			unappliedProperties[propertyName] = virtualValue
 		end
 	end
 
-	-- If there were any properties that we failed to assign, push this into our
-	-- unapplied patch as an update that would need to be applied.
-	if next(unappliedProperties) ~= nil then
-		table.insert(unappliedPatch.updated, {
-			id = id,
-			changedProperties = unappliedProperties,
-		})
-	end
+	local properties = virtualInstance.Properties
+	local postProperties = properties.PostProperties
+	if postProperties then properties.PostProperties = nil end
+
+	applyProperties(properties)
 
 	for _, childId in ipairs(virtualInstance.Children) do
 		reifyInstanceInner(unappliedPatch, deferredRefs, instanceMap, virtualInstances, childId, instance)
@@ -98,6 +106,8 @@ function reifyInstanceInner(unappliedPatch, deferredRefs, instanceMap, virtualIn
 
 	instance.Parent = parentInstance
 	instanceMap:insert(id, instance)
+
+	if postProperties then applyProperties(postProperties.Attributes) end
 end
 
 function applyDeferredRefs(instanceMap, deferredRefs, unappliedPatch)

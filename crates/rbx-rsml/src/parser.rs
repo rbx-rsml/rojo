@@ -521,7 +521,10 @@ fn tuple_to_udim_data_type<'a>(tuple: &TupleDataType) -> DataType<'a> {
 fn tuple_to_font_data_type<'a>(tuple: &TupleDataType) -> DataType<'a> {
     let font_name = if let Some(component) = tuple.get(0) {
         match component {
-            DataType::StringSingle(str) => *str,
+            DataType::StringSingle(font_str) => match font_str.starts_with("rbxasset://") {
+                true => *font_str,
+                false => &format!("rbxasset://fonts/families/{}.json", font_str)
+            },
             DataType::Number(num) => &format!("rbxassetid://{}", num),
             _ => "rbxasset://fonts/families/SourceSansPro.json"
         }

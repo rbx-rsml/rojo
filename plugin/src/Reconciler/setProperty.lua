@@ -1,3 +1,5 @@
+--!nolint LocalShadow
+
 --[[
 	Attempts to set a property on the given instance.
 ]]
@@ -18,11 +20,11 @@ local function setProperty(instance, propertyName, value)
 			local split = string.split(styledPropValue, ".")
 			if #split ~= 3 then continue end
 
-			local enum = Enum[split[2]]
-			if not enum then continue end
+			local ok, enum = pcall(function() return Enum[split[2]] end)
+			if not ok then continue end
 
-			local enumVariant = enum[split[3]]
-			if not enumVariant then continue end
+			local ok, enumVariant = pcall(function() return enum[split[3]] end)
+			if not ok then continue end
 
 			value[styledPropName] = enumVariant
 		end

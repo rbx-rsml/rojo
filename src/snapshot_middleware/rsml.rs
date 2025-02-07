@@ -47,7 +47,11 @@ fn apply_token_tree_to_stylesheet_snapshot(
 
     let mut properties: HashMap<String, Variant> = HashMap::new();
     properties.insert("Selector".into(), Variant::String(selector.to_string()));
-    if let Some(priority) = data.priority { properties.insert("Priority".into(), Variant::Int32(priority)); }
+    if let Some(priority) = data.priority {
+        let mut post_properties = Attributes::new();
+        post_properties.insert("Priority".into(), Variant::Int32(priority));
+        properties.insert("PostProperties".into(), post_properties.into());
+    }
     if !attributes.is_empty() { properties.insert("Attributes".into(), attributes.into()); }
     if !styled_properties.is_empty() { properties.insert("StyledProperties".into(), styled_properties.into()); }
 
@@ -58,15 +62,9 @@ fn apply_token_tree_to_stylesheet_snapshot(
 
 
 fn stringify_path(path: &Path) -> String {
-    println!("{:#?}", "/hello world");
-
-    let stringified = path.normalize().to_str().unwrap()
+    path.normalize().to_str().unwrap()
         // On windows the path string uses `\` as a separator instead of `/`.
-        .replace(r"\", r"/");
-
-    println!("{:#?} {:#?}", stringified, stringified.chars().nth(0));
-
-    stringified
+        .replace(r"\", r"/")
 }
 
 fn string_to_ref(str: &str) -> String {

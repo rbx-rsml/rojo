@@ -211,32 +211,42 @@ local function applyPatch(instanceMap, patch)
 		end
 
 		if update.changedProperties ~= nil then
-			for propertyName, propertyValue in pairs(update.changedProperties) do
-				-- Because refs may refer to instances that we haven't constructed yet,
-				-- we defer applying any ref properties until all instances are created.
-				if next(propertyValue) == "Ref" then
-					table.insert(deferredRefs, {
-						id = update.id,
-						instance = instance,
-						propertyName = propertyName,
-						virtualValue = propertyValue,
-					})
-					continue
-				end
 
-				local decodeSuccess, decodedValue = decodeValue(propertyValue, instanceMap)
-				if not decodeSuccess then
-					unappliedUpdate.changedProperties[propertyName] = propertyValue
-					partiallyApplied = true
-					continue
-				end
-
-				local setPropertySuccess = setProperty(instance, propertyName, decodedValue)
-				if not setPropertySuccess then
-					unappliedUpdate.changedProperties[propertyName] = propertyValue
-					partiallyApplied = true
+			local function applyProperties(properties)
+				for propertyName, propertyValue in pairs(properties) do
+					-- Because refs may refer to instances that we haven't constructed yet,
+					-- we defer applying any ref properties until all instances are created.
+					if next(propertyValue) == "Ref" then
+						table.insert(deferredRefs, {
+							id = update.id,
+							instance = instance,
+							propertyName = propertyName,
+							virtualValue = propertyValue,
+						})
+						continue
+					end
+	
+					local decodeSuccess, decodedValue = decodeValue(propertyValue, instanceMap)
+					if not decodeSuccess then
+						unappliedUpdate.changedProperties[propertyName] = propertyValue
+						partiallyApplied = true
+						continue
+					end
+	
+					local setPropertySuccess = setProperty(instance, propertyName, decodedValue)
+					if not setPropertySuccess then
+						unappliedUpdate.changedProperties[propertyName] = propertyValue
+						partiallyApplied = true
+					end
 				end
 			end
+
+			local properties = update.changedProperties
+			local postProperties = properties.PostProperties
+			if postProperties then properties.PostProperties = nil end
+
+			applyProperties(properties)
+			if postProperties then applyProperties(postProperties.Attributes) end
 		end
 
 		if partiallyApplied then
