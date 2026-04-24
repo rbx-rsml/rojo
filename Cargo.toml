@@ -1,6 +1,6 @@
 [package]
 name = "rojo"
-version = "7.7.0-rc.1"
+version = "7.7.0-rc.1-rsml-0"
 rust-version = "1.88"
 authors = [
     "Lucien Greathouse <me@lpghatguy.com>",
@@ -57,11 +57,19 @@ memofs = { version = "0.3.1", path = "crates/memofs" }
 # rbx_reflection_database = { path = "../rbx-dom/rbx_reflection_database" }
 # rbx_xml = { path = "../rbx-dom/rbx_xml" }
 
-rbx_binary = { version = "2.0.1", features = ["unstable_text_format"] }
-rbx_dom_weak = "4.1.0"
-rbx_reflection = "6.1.0"
-rbx_reflection_database = "2.0.2"
-rbx_xml = "2.0.1"
+rbx_binary = { git = "https://github.com/cameronpcampbell/rbx-dom.git", features = [
+    "unstable_text_format",
+] }
+rbx_dom_weak = { git = "https://github.com/cameronpcampbell/rbx-dom.git" }
+rbx_reflection = { git = "https://github.com/cameronpcampbell/rbx-dom.git" }
+rbx_reflection_database = { git = "https://github.com/cameronpcampbell/rbx-dom.git" }
+rbx_xml = { git = "https://github.com/cameronpcampbell/rbx-dom.git" }
+
+# rbx_binary = { version = "2.0.1", features = ["unstable_text_format"] }
+# rbx_dom_weak = "4.1.0"
+# rbx_reflection = "6.1.0"
+# rbx_reflection_database = "2.0.2"
+# rbx_xml = "2.0.1"
 
 anyhow = "1.0.80"
 backtrace = "0.3.69"

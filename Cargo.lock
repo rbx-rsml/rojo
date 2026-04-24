@@ -538,7 +538,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1426,7 +1426,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1800,8 +1800,7 @@ dependencies = [
 [[package]]
 name = "rbx_binary"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95e2b4a187679aa3d169ed50ed5eedbf26383459fec83bf1232c2934b35b24de"
+source = "git+https://github.com/cameronpcampbell/rbx-dom.git#8907090f5be3508d66e58906f1660b99fcfd0c35"
 dependencies = [
  "ahash",
  "log",
@@ -1818,8 +1817,7 @@ dependencies = [
 [[package]]
 name = "rbx_dom_weak"
 version = "4.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7a5c48c2605913fbb1986bceb3e18ef9f12eadedb7edd62bf9fb03447b57c46"
+source = "git+https://github.com/cameronpcampbell/rbx-dom.git#8907090f5be3508d66e58906f1660b99fcfd0c35"
 dependencies = [
  "ahash",
  "rbx_types",
@@ -1830,8 +1828,7 @@ dependencies = [
 [[package]]
 name = "rbx_reflection"
 version = "6.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84f635e79d5d710c82e9049faa57d32945e76a6b041280dc6274f732c0dd78dc"
+source = "git+https://github.com/cameronpcampbell/rbx-dom.git#8907090f5be3508d66e58906f1660b99fcfd0c35"
 dependencies = [
  "rbx_types",
  "serde",
@@ -1841,8 +1838,7 @@ dependencies = [
 [[package]]
 name = "rbx_reflection_database"
 version = "2.0.2+roblox-700"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de2753b896d08d74316d8b89fbeb2470ebd3986404ebba82fa85fcc0330955cf"
+source = "git+https://github.com/cameronpcampbell/rbx-dom.git#8907090f5be3508d66e58906f1660b99fcfd0c35"
 dependencies = [
  "dirs 5.0.1",
  "log",
@@ -1854,8 +1850,7 @@ dependencies = [
 [[package]]
 name = "rbx_types"
 version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de3b89eefdd71f5e2a25543b1ead9f6ea2ed3fdfba8b397cbdb0de053eb2463e"
+source = "git+https://github.com/cameronpcampbell/rbx-dom.git#8907090f5be3508d66e58906f1660b99fcfd0c35"
 dependencies = [
  "base64 0.13.1",
  "bitflags 1.3.2",
@@ -1869,8 +1864,7 @@ dependencies = [
 [[package]]
 name = "rbx_xml"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0cbaf53b44c9cc0fad1e5dc8ac63fb32fa0ecaa26d32b269cebe4dca8b7b4de"
+source = "git+https://github.com/cameronpcampbell/rbx-dom.git#8907090f5be3508d66e58906f1660b99fcfd0c35"
 dependencies = [
  "ahash",
  "base64 0.13.1",
@@ -2044,7 +2038,7 @@ dependencies = [
 
 [[package]]
 name = "rojo"
-version = "7.7.0-rc.1"
+version = "7.7.0-rc.1-rsml-0"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -2138,7 +2132,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2495,7 +2489,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3007,7 +3001,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

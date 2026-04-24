@@ -178,6 +178,14 @@ pub fn variant_eq(variant_a: &Variant, variant_b: &Variant) -> bool {
         (Variant::Vector2int16(a), Variant::Vector2int16(b)) => a == b,
         (Variant::Vector3(a), Variant::Vector3(b)) => vector_eq(a, b),
         (Variant::Vector3int16(a), Variant::Vector3int16(b)) => a == b,
+        (Variant::TweenInfo(a), Variant::TweenInfo(b)) => {
+            a.time == b.time
+                && a.easing_style == b.easing_style
+                && a.easing_direction == b.easing_direction
+                && a.repeat_count == b.repeat_count
+                && a.reverses == b.reverses
+                && a.delay_time == b.delay_time
+        }
         (a, b) => panic!(
             "unsupport variant comparison: {:?} and {:?}",
             a.ty(),
